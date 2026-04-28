@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TikZ Atelier · 拖拽绘图工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Newsreader:opsz,wght@6..72,300..700&family=JetBrains+Mono:wght@300..700&display=swap" rel="stylesheet" />
+<style>
+  :root,
+  [data-theme="light"] {
+    --paper:        #ffffff;
+    --paper-deep:   #f6f3ec;
+    --ink:          #1a1814;
+    --ink-soft:     #6a6258;
+    --ink-faint:    #b8aea0;
+    --canvas:       #fbfaf6;
+    --grid:         #ebe6d9;
+    --grid-bold:    #d4cdb8;
+    --rule:         rgba(26, 24, 20, 0.10);
+    --accent:       #c8451a;
+    --accent-deep:  #9c2f0a;
+    --accent-soft:  #f0d4c1;
+    --select:       #2d5a8a;
+    --select-soft:  #d6e3f0;
+    --code-bg:      #1a1814;
+    --code-fg:      #e8ddc8;
+    --code-shadow:  inset 0 0 0 1px rgba(26, 24, 20, 0.4);
+    --shadow:       0 1px 2px rgba(26, 24, 20, 0.04), 0 4px 18px rgba(26, 24, 20, 0.05);
+    --shadow-deep:  0 2px 4px rgba(26, 24, 20, 0.06), 0 12px 40px rgba(26, 24, 20, 0.08);
+    --glow-a:       rgba(200, 69, 26, 0.025);
+    --glow-b:       rgba(45, 90, 138, 0.025);
+    --serif:        "Newsreader", "Georgia", serif;
+    --display:      "Fraunces", "Times New Roman", serif;
+    --mono:         "JetBrains Mono", "Menlo", monospace;
+  }
+
+  [data-theme="dark"] {
+    --paper:        #1a1815;
+    --paper-deep:   #232019;
+    --ink:          #f0e8d4;
+    --ink-soft:     #a8a08c;
+    --ink-faint:    #5e574a;
+    --canvas:       #14120f;
+    --grid:         #2a2722;
+    --grid-bold:    #3a352d;
+    --rule:         rgba(240, 232, 212, 0.10);
+    --accent:       #e8895c;
+    --accent-deep:  #f0a37a;
+    --accent-soft:  #4a2418;
+    --select:       #7ba0d4;
+    --select-soft:  #2a3a4f;
+    --code-bg:      #0e0c0a;
+    --code-fg:      #e8ddc8;
+    --code-shadow:  inset 0 0 0 1px rgba(240, 232, 212, 0.08);
+    --shadow:       0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 18px rgba(0, 0, 0, 0.3);
+    --shadow-deep:  0 2px 4px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.4);
+    --glow-a:       rgba(232, 137, 92, 0.045);
+    --glow-b:       rgba(123, 160, 212, 0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--serif);
+    color: var(--ink);
+    background: var(--paper);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 20% 10%, var(--glow-a), transparent 40%),
+      radial-gradient(circle at 80% 90%, var(--glow-b), transparent 50%);
+  }
+
+  button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+  input, select, textarea { font: inherit; color: inherit; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 92px 1fr 360px;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "header header header"
+      "palette canvas inspector"
+      "footer footer footer";
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ========== FOOTER ========== */
+  footer {
+    grid-area: footer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 26px;
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+    font-family: var(--serif);
+    font-size: 11px;
+    font-style: italic;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+    z-index: 5;
+  }
+
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+    margin-left: 4px;
+    font-style: normal;
+  }
+
+  footer a:hover {
+    border-bottom-color: var(--accent);
+  }
+
+  footer .sep {
+    margin: 0 10px;
+    color: var(--ink-faint);
+    font-style: normal;
+  }
+
+  /* ========== HEADER ========== */
+  header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 26px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+    z-index: 5;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  .brand .mark {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .brand .mark em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--accent);
+  }
+
+  .brand .tagline {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.01em;
+  }
+
+  .brand .tagline::before {
+    content: "·";
+    margin-right: 8px;
+    color: var(--ink-faint);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--canvas);
+    font-size: 13px;
+    font-family: var(--serif);
+    color: var(--ink);
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover {
+    border-color: var(--ink);
+    background: var(--paper-deep);
+  }
+
+  .btn.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .btn.primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .btn.danger:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .btn svg { width: 14px; height: 14px; }
+
+  .btn.icon-only {
+    padding: 8px 9px;
+  }
+  .btn.icon-only svg { width: 15px; height: 15px; }
+
+  /* ========== PALETTE (LEFT) ========== */
+  .palette {
+    grid-area: palette;
+    border-right: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 18px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+  }
+
+  .palette-label {
+    font-family: var(--display);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    text-align: center;
+    margin: 6px 0 6px;
+    font-weight: 500;
+  }
+
+  .palette-label:not(:first-child) { margin-top: 18px; }
+
+  .tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 4px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    font-size: 10px;
+    color: var(--ink-soft);
+    font-family: var(--serif);
+    width: 100%;
+  }
+
+  .tool:hover {
+    background: var(--canvas);
+    border-color: var(--rule);
+    color: var(--ink);
+  }
+
+  .tool.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .tool.active svg { stroke: var(--paper); }
+
+  .tool svg {
+    width: 30px;
+    height: 30px;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    fill: none;
+  }
+
+  /* ========== CANVAS (CENTER) ========== */
+  .canvas-area {
+    grid-area: canvas;
+    position: relative;
+    overflow: hidden;
+    background: var(--canvas);
+  }
+
+  .canvas-frame {
+    position: absolute;
+    inset: 24px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--canvas);
+    box-shadow: var(--shadow);
+  }
+
+  #canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: default;
+    background-image:
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px),
+      linear-gradient(to right, var(--grid-bold) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-bold) 1px, transparent 1px);
+    background-size: 25px 25px, 25px 25px, 125px 125px, 125px 125px;
+  }
+
+  #canvas.placing { cursor: crosshair; }
+  #canvas.connecting { cursor: alias; }
+
+  .canvas-hint {
+    position: absolute;
+    top: 38px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 2px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+    letter-spacing: 0.02em;
+  }
+
+  .canvas-hint.show { opacity: 1; }
+
+  .canvas-meta {
+    position: absolute;
+    bottom: 36px;
+    right: 36px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+    pointer-events: none;
+  }
+
+  /* SVG node styles via classes */
+  .svg-node {
+    cursor: move;
+  }
+
+  .svg-node-shape {
+    transition: filter 0.12s ease;
+  }
+
+  .svg-node.selected .svg-node-shape {
+    filter: drop-shadow(0 0 0 var(--select)) drop-shadow(0 0 6px rgba(45, 90, 138, 0.4));
+  }
+
+  .selection-rect {
+    fill: none;
+    stroke: var(--select);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+    pointer-events: none;
+  }
+
+  .source-ring {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-dasharray: 5 3;
+    pointer-events: none;
+  }
+
+  #canvas {
+    color: var(--ink);
+  }
+
+  .svg-edge { cursor: pointer; }
+
+  /* ========== INSPECTOR (RIGHT) ========== */
+  .inspector {
+    grid-area: inspector;
+    border-left: 1px solid var(--rule);
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel {
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 22px;
+  }
+
+  .panel:last-child {
+    border-bottom: none;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .panel h3 {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel h3 .panel-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: var(--ink-faint);
+    text-transform: none;
+    background: var(--canvas);
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid var(--rule);
+  }
+
+  .field {
+    margin-bottom: 10px;
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .field-row.split-2 {
+    grid-template-columns: 70px 1fr 1fr;
+  }
+
+  .field label {
+    font-size: 11px;
+    color: var(--ink-soft);
+    font-family: var(--serif);
+    font-style: italic;
+  }
+
+  .field input[type="text"], .field textarea, .field select {
+    width: 100%;
+    border: 1px solid var(--rule);
+    background: var(--canvas);
+    padding: 6px 9px;
+    border-radius: 2px;
+    font-size: 12px;
+    font-family: var(--serif);
+    transition: border-color 0.15s;
+  }
+
+  .field input[type="text"]:focus,
+  .field textarea:focus,
+  .field select:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
+
+  .field textarea {
+    resize: vertical;
+    min-height: 36px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .field input[type="number"] {
+    width: 100%;
+    border: 1px solid var(--rule);
+    background: var(--canvas);
+    padding: 6px 9px;
+    border-radius: 2px;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+
+  .field input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+
+  .color-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .color-picker input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .color-picker input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+  .color-picker input[type="color"]::-webkit-color-swatch { border: none; border-radius: 1px; }
+
+  .color-picker .hex {
+    flex: 1;
+    border: 1px solid var(--rule);
+    background: var(--canvas);
+    padding: 5px 8px;
+    border-radius: 2px;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+
+  .color-picker .clear-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--canvas);
+    color: var(--ink-soft);
+    font-size: 12px;
+  }
+
+  .color-picker .clear-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .empty-state {
+    color: var(--ink-faint);
+    font-style: italic;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .empty-state em {
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  .danger-zone {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--rule);
+    display: flex;
+    gap: 8px;
+  }
+
+  .danger-zone .btn {
+    flex: 1;
+    justify-content: center;
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  /* ========== CODE PANEL ========== */
+  .code-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .code-toggle {
+    display: flex;
+    gap: 0;
+    margin-bottom: 12px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .code-toggle button {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--ink-soft);
+    background: var(--canvas);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: all 0.15s ease;
+  }
+
+  .code-toggle button:not(:last-child) {
+    border-right: 1px solid var(--rule);
+  }
+
+  .code-toggle button.active {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .code-output {
+    flex: 1;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border-radius: 2px;
+    padding: 14px 16px;
+    overflow: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.65;
+    white-space: pre;
+    border: 1px solid var(--code-bg);
+    box-shadow: var(--code-shadow);
+    position: relative;
+    min-height: 0;
+  }
+
+  .code-output .keyword { color: #e8a079; }
+  .code-output .command { color: #f0c987; }
+  .code-output .string  { color: #a8b89a; }
+  .code-output .comment { color: #8b8170; font-style: italic; }
+  .code-output .number  { color: #c8b994; }
+
+  .copy-floating {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(244, 237, 224, 0.15);
+    color: var(--paper);
+    border: 1px solid rgba(244, 237, 224, 0.25);
+    padding: 4px 10px;
+    font-size: 10px;
+    font-family: var(--mono);
+    border-radius: 2px;
+    backdrop-filter: blur(6px);
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .copy-floating:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .copy-floating.copied { background: #4a8a3d; border-color: #4a8a3d; }
+
+  /* Scrollbars */
+  .code-output::-webkit-scrollbar,
+  .palette::-webkit-scrollbar,
+  .inspector::-webkit-scrollbar { width: 6px; height: 6px; }
+  .code-output::-webkit-scrollbar-thumb { background: rgba(244, 237, 224, 0.2); border-radius: 3px; }
+  .palette::-webkit-scrollbar-thumb,
+  .inspector::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+  .code-output::-webkit-scrollbar-track,
+  .palette::-webkit-scrollbar-track,
+  .inspector::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="mark">TikZ <em>Atelier</em></div>
+      <div class="tagline">拖拽生成 LaTeX 绘图代码</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="loadExample">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v10H3z"/><path d="M6 6h4M6 9h4"/></svg>
+        载入示例
+      </button>
+      <button class="btn danger" id="clearAll">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h10M6 5V3h4v2M5 5l1 9h4l1-9"/></svg>
+        清空画布
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ SHAPE PALETTE ============ -->
+  <aside class="palette">
+    <div class="palette-label">形状</div>
+
+    <button class="tool" data-shape="rectangle" title="矩形 Rectangle">
+      <svg viewBox="0 0 32 32"><rect x="5" y="9" width="22" height="14" rx="0"/></svg>
+      矩形
+    </button>
+
+    <button class="tool" data-shape="rounded" title="圆角矩形 Rounded">
+      <svg viewBox="0 0 32 32"><rect x="5" y="9" width="22" height="14" rx="4"/></svg>
+      圆角
+    </button>
+
+    <button class="tool" data-shape="circle" title="圆 Circle">
+      <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="10"/></svg>
+      圆
+    </button>
+
+    <button class="tool" data-shape="ellipse" title="椭圆 Ellipse">
+      <svg viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="12" ry="7"/></svg>
+      椭圆
+    </button>
+
+    <button class="tool" data-shape="diamond" title="菱形 Diamond">
+      <svg viewBox="0 0 32 32"><path d="M16 4 L28 16 L16 28 L4 16 Z"/></svg>
+      菱形
+    </button>
+
+    <button class="tool" data-shape="text" title="纯文本 Text">
+      <svg viewBox="0 0 32 32"><path d="M8 10h16M16 10v14M12 24h8" stroke-linecap="round"/></svg>
+      文本
+    </button>
+
+    <div class="palette-label">连接</div>
+
+    <button class="tool" id="connectTool" title="连线 Connect">
+      <svg viewBox="0 0 32 32"><circle cx="7" cy="16" r="3"/><circle cx="25" cy="16" r="3"/><path d="M10 16h12M19 13l3 3-3 3" stroke-linecap="round"/></svg>
+      连线
+    </button>
+  </aside>
+
+  <!-- ============ CANVAS ============ -->
+  <main class="canvas-area">
+    <div class="canvas-frame">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="canvas-hint" id="canvasHint">点击形状放置 · 再点其它点取消</div>
+      <div class="canvas-meta" id="canvasMeta">原点 (0,0) 在左下 · 1cm = 50px</div>
+    </div>
+  </main>
+
+  <!-- ============ INSPECTOR ============ -->
+  <aside class="inspector">
+
+    <div class="panel" id="propsPanel">
+      <h3>属性 <span class="panel-tag" id="propsTag">无选中</span></h3>
+      <div id="propsBody">
+        <p class="empty-state">
+          从左侧<em>点击形状图标</em>添加节点。<br/>
+          点击节点选中、拖动移动；<br/>
+          按 <em>连线</em> 按钮后依次点两个节点即可连接。<br/>
+          按 <em>Delete / Backspace</em> 删除选中。
+        </p>
+      </div>
+    </div>
+
+    <div class="panel code-panel">
+      <h3>TikZ 代码 <span class="panel-tag" id="codeStats">0 节点 · 0 连线</span></h3>
+
+      <div class="code-toggle">
+        <button class="active" data-mode="env">仅 tikzpicture</button>
+        <button data-mode="full">完整文档</button>
+      </div>
+
+      <div class="code-output" id="codeOutput"><button class="copy-floating" id="copyBtn">复制</button><span id="codeContent"></span></div>
+    </div>
+
+  </aside>
+    <footer>
+        由 Karcen Zheng 制作
+        <span class="sep">·</span>
+        <a href="https://karcen.github.io/zhengjiacheng.github.io/" target="_blank" rel="noopener noreferrer">联系我 →</a>
+      </footer>
+</div>
+
+<script>
+/* ===========================================================
+   TikZ ATELIER — drag & drop tikz code generator
+   =========================================================== */
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/* ----- State ----- */
+const state = {
+  nodes: [],          // { id, type, x, y, w, h, text, fontSize, fill, stroke, strokeWidth, dashed }
+  edges: [],          // { id, from, to, label, arrow, dashed, color, bend }
+  selectedId: null,
+  selectedKind: null, // 'node' | 'edge'
+  mode: 'select',     // 'select' | 'place' | 'connect'
+  placeShape: null,
+  connectFrom: null,
+  idCounter: 1,
+  codeMode: 'env',
+  scale: 50,          // px per tikz cm
+};
+
+const canvas = document.getElementById('canvas');
+const canvasHint = document.getElementById('canvasHint');
+const propsBody  = document.getElementById('propsBody');
+const propsTag   = document.getElementById('propsTag');
+const codeContent= document.getElementById('codeContent');
+const codeStats  = document.getElementById('codeStats');
+
+/* ----- Utility ----- */
+function uid() { return 'n' + (state.idCounter++); }
+function el(tag, attrs = {}) {
+  const e = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+// Pass node text through verbatim — LaTeX users want to write \frac, $x^2$, etc.
+// Only handle newlines (TikZ uses \\ for line breaks inside a node).
+function escTex(s) {
+  if (!s) return '';
+  return s.replace(/\n/g, ' \\\\ ');
+}
+function showHint(msg) {
+  canvasHint.textContent = msg;
+  canvasHint.classList.add('show');
+  clearTimeout(showHint._t);
+  showHint._t = setTimeout(() => canvasHint.classList.remove('show'), 2200);
+}
+function getCanvasSize() {
+  const r = canvas.getBoundingClientRect();
+  return { w: r.width, h: r.height };
+}
+
+/* ----- Default shape templates ----- */
+const SHAPE_DEFAULTS = {
+  rectangle: { w: 110, h: 56,  text: '节点',  fill: '#fef3df', stroke: '#1a1814' },
+  rounded:   { w: 120, h: 56,  text: '步骤',  fill: '#e6efde', stroke: '#1a1814' },
+  circle:    { w: 80,  h: 80,  text: 'A',    fill: '#fde2dc', stroke: '#1a1814' },
+  ellipse:   { w: 130, h: 64,  text: '状态',  fill: '#dde7f0', stroke: '#1a1814' },
+  diamond:   { w: 110, h: 80,  text: '判断',  fill: '#f6e6c8', stroke: '#1a1814' },
+  text:      { w: 80,  h: 28,  text: '标签',  fill: 'none',    stroke: 'none'    },
+};
+
+/* ===========================================================
+   PALETTE / MODE
+   =========================================================== */
+document.querySelectorAll('.tool[data-shape]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const shape = btn.dataset.shape;
+    enterPlaceMode(shape);
+  });
+});
+document.getElementById('connectTool').addEventListener('click', () => {
+  if (state.mode === 'connect') exitMode();
+  else enterConnectMode();
+});
+
+function clearToolHighlight() {
+  document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+}
+function enterPlaceMode(shape) {
+  state.mode = 'place';
+  state.placeShape = shape;
+  state.connectFrom = null;
+  clearToolHighlight();
+  document.querySelector(`.tool[data-shape="${shape}"]`).classList.add('active');
+  canvas.classList.add('placing');
+  canvas.classList.remove('connecting');
+  showHint('点击画布任意位置放置 · 按 Esc 取消');
+}
+function enterConnectMode() {
+  state.mode = 'connect';
+  state.placeShape = null;
+  state.connectFrom = null;
+  clearToolHighlight();
+  document.getElementById('connectTool').classList.add('active');
+  canvas.classList.add('connecting');
+  canvas.classList.remove('placing');
+  showHint('点选起点节点');
+}
+function exitMode() {
+  state.mode = 'select';
+  state.placeShape = null;
+  state.connectFrom = null;
+  clearToolHighlight();
+  canvas.classList.remove('placing', 'connecting');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    exitMode();
+    select(null);
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedId) {
+    if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+    deleteSelected();
+    e.preventDefault();
+  }
+});
+
+/* ===========================================================
+   CANVAS CLICK
+   =========================================================== */
+canvas.addEventListener('click', (e) => {
+  if (e.target !== canvas) return;
+  if (state.mode === 'place') {
+    const pt = clientToCanvas(e.clientX, e.clientY);
+    addNode(state.placeShape, pt.x, pt.y);
+    exitMode();
+  } else {
+    select(null);
+  }
+});
+
+function clientToCanvas(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  return { x: cx - r.left, y: cy - r.top };
+}
+
+/* ===========================================================
+   ADD NODE
+   =========================================================== */
+function addNode(type, x, y) {
+  const d = SHAPE_DEFAULTS[type];
+  const node = {
+    id: uid(),
+    type,
+    x: x ?? 200,
+    y: y ?? 200,
+    w: d.w,
+    h: d.h,
+    text: d.text,
+    fontSize: 14,
+    fill: d.fill,
+    stroke: d.stroke,
+    strokeWidth: type === 'text' ? 0 : 1.5,
+    dashed: false,
+  };
+  state.nodes.push(node);
+  render();
+  select(node.id, 'node');
+}
+
+/* ===========================================================
+   RENDER
+   =========================================================== */
+function render() {
+  // Clear
+  while (canvas.firstChild) canvas.removeChild(canvas.firstChild);
+
+  // Defs: arrowheads
+  const defs = el('defs');
+  defs.innerHTML = `
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/>
+    </marker>
+    <marker id="arrowBack" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 10 0 L 0 5 L 10 10 z" fill="context-stroke"/>
+    </marker>
+  `;
+  canvas.appendChild(defs);
+
+  // Edges first (under nodes)
+  const edgeLayer = el('g', { 'data-layer': 'edges' });
+  canvas.appendChild(edgeLayer);
+  state.edges.forEach(edge => renderEdge(edge, edgeLayer));
+
+  // Nodes
+  const nodeLayer = el('g', { 'data-layer': 'nodes' });
+  canvas.appendChild(nodeLayer);
+  state.nodes.forEach(node => renderNode(node, nodeLayer));
+
+  // Inspector + code
+  renderInspector();
+  renderCode();
+  codeStats.textContent = `${state.nodes.length} 节点 · ${state.edges.length} 连线`;
+}
+
+function renderNode(node, parent) {
+  const g = el('g', {
+    class: 'svg-node' + (state.selectedId === node.id && state.selectedKind === 'node' ? ' selected' : ''),
+    transform: `translate(${node.x}, ${node.y})`,
+    'data-id': node.id,
+  });
+
+  let shapeEl;
+  const w = node.w, h = node.h;
+  const isText = node.type === 'text';
+  const fillVal = node.fill === 'none' ? 'none' : node.fill;
+  const strokeVal = isText || node.stroke === 'none' ? 'none' : node.stroke;
+  const sw = isText ? 0 : node.strokeWidth;
+  const dash = node.dashed ? '6 4' : '0';
+
+  switch (node.type) {
+    case 'rectangle':
+      shapeEl = el('rect', { class: 'svg-node-shape', x: -w/2, y: -h/2, width: w, height: h, fill: fillVal, stroke: strokeVal, 'stroke-width': sw, 'stroke-dasharray': dash });
+      break;
+    case 'rounded':
+      shapeEl = el('rect', { class: 'svg-node-shape', x: -w/2, y: -h/2, width: w, height: h, rx: 12, ry: 12, fill: fillVal, stroke: strokeVal, 'stroke-width': sw, 'stroke-dasharray': dash });
+      break;
+    case 'circle': {
+      const r = Math.min(w, h) / 2;
+      shapeEl = el('circle', { class: 'svg-node-shape', cx: 0, cy: 0, r, fill: fillVal, stroke: strokeVal, 'stroke-width': sw, 'stroke-dasharray': dash });
+      break;
+    }
+    case 'ellipse':
+      shapeEl = el('ellipse', { class: 'svg-node-shape', cx: 0, cy: 0, rx: w/2, ry: h/2, fill: fillVal, stroke: strokeVal, 'stroke-width': sw, 'stroke-dasharray': dash });
+      break;
+    case 'diamond': {
+      const pts = `0,${-h/2} ${w/2},0 0,${h/2} ${-w/2},0`;
+      shapeEl = el('polygon', { class: 'svg-node-shape', points: pts, fill: fillVal, stroke: strokeVal, 'stroke-width': sw, 'stroke-dasharray': dash });
+      break;
+    }
+    case 'text':
+      shapeEl = el('rect', { class: 'svg-node-shape', x: -w/2, y: -h/2, width: w, height: h, fill: 'transparent', stroke: 'none' });
+      break;
+  }
+  g.appendChild(shapeEl);
+
+  // Text - support multiline
+  const lines = (node.text || '').split('\n');
+  const text = el('text', {
+    'text-anchor': 'middle',
+    'dominant-baseline': 'middle',
+    'font-family': 'Newsreader, Georgia, serif',
+    'font-size': node.fontSize,
+    fill: '#1a1814',
+    'pointer-events': 'none',
+  });
+  const totalHeight = (lines.length - 1) * node.fontSize * 1.15;
+  lines.forEach((line, i) => {
+    const tspan = el('tspan', { x: 0, y: -totalHeight/2 + i * node.fontSize * 1.15 });
+    tspan.textContent = line;
+    text.appendChild(tspan);
+  });
+  g.appendChild(text);
+
+  // Selection rect when selected
+  if (state.selectedId === node.id && state.selectedKind === 'node') {
+    const pad = 8;
+    g.appendChild(el('rect', {
+      class: 'selection-rect',
+      x: -w/2 - pad, y: -h/2 - pad,
+      width: w + pad*2, height: h + pad*2,
+    }));
+  }
+
+  // Highlight when this node is the connection source
+  if (state.connectFrom === node.id) {
+    const pad = 6;
+    const ring = el('rect', {
+      x: -w/2 - pad, y: -h/2 - pad,
+      width: w + pad*2, height: h + pad*2,
+      rx: 4, ry: 4,
+      fill: 'none',
+      stroke: '#c8451a',
+      'stroke-width': 2,
+      'stroke-dasharray': '5 3',
+      'pointer-events': 'none',
+    });
+    g.appendChild(ring);
+  }
+
+  parent.appendChild(g);
+  attachNodeEvents(g, node);
+}
+
+function renderEdge(edge, parent) {
+  const a = state.nodes.find(n => n.id === edge.from);
+  const b = state.nodes.find(n => n.id === edge.to);
+  if (!a || !b) return;
+
+  // Compute attachment points on shape boundaries
+  const p1 = boundaryPoint(a, b.x, b.y);
+  const p2 = boundaryPoint(b, a.x, a.y);
+
+  const g = el('g', {
+    class: 'svg-edge' + (state.selectedId === edge.id && state.selectedKind === 'edge' ? ' selected' : ''),
+    'data-id': edge.id,
+  });
+
+  const stroke = edge.color || '#1a1814';
+  const sw = state.selectedId === edge.id && state.selectedKind === 'edge' ? 2.5 : 1.5;
+  const dash = edge.dashed ? '6 4' : '0';
+
+  // Path: straight or curved
+  let pathD;
+  if (edge.bend && edge.bend !== 0) {
+    const mx = (p1.x + p2.x) / 2;
+    const my = (p1.y + p2.y) / 2;
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const cx = mx + nx * edge.bend * 30;
+    const cy = my + ny * edge.bend * 30;
+    pathD = `M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`;
+  } else {
+    pathD = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
+  }
+
+  const path = el('path', {
+    d: pathD, fill: 'none', stroke, 'stroke-width': sw, 'stroke-dasharray': dash,
+  });
+
+  if (edge.arrow === 'forward' || edge.arrow === 'both') path.setAttribute('marker-end', 'url(#arrow)');
+  if (edge.arrow === 'back' || edge.arrow === 'both') path.setAttribute('marker-start', 'url(#arrowBack)');
+
+  // Hit area (invisible thick path) for easier clicking
+  const hit = el('path', {
+    d: pathD, fill: 'none', stroke: 'transparent', 'stroke-width': 14,
+  });
+
+  g.appendChild(hit);
+  g.appendChild(path);
+
+  // Label
+  if (edge.label) {
+    const mid = midPointOnPath(p1, p2, edge.bend || 0);
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const len = Math.hypot(dx, dy) || 1;
+    // Normal pointing "up" relative to direction of travel (SVG y-down)
+    const nx = dy / len, ny = -dx / len;
+    const lx = mid.x + nx * 12;
+    const ly = mid.y + ny * 12;
+    // Background for readability
+    const tBg = el('text', {
+      x: lx, y: ly, 'text-anchor': 'middle', 'dominant-baseline': 'middle',
+      'font-family': 'Newsreader, Georgia, serif', 'font-size': 12,
+      fill: '#fdfaf3', stroke: '#fdfaf3', 'stroke-width': 4, 'paint-order': 'stroke',
+      'pointer-events': 'none',
+    });
+    tBg.textContent = edge.label;
+    const t = el('text', {
+      x: lx, y: ly, 'text-anchor': 'middle', 'dominant-baseline': 'middle',
+      'font-family': 'Newsreader, Georgia, serif', 'font-size': 12, fill: stroke,
+      'pointer-events': 'none', 'font-style': 'italic',
+    });
+    t.textContent = edge.label;
+    g.appendChild(tBg);
+    g.appendChild(t);
+  }
+
+  parent.appendChild(g);
+
+  hit.addEventListener('click', (e) => {
+    e.stopPropagation();
+    select(edge.id, 'edge');
+  });
+}
+
+function midPointOnPath(p1, p2, bend) {
+  const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+  if (!bend) return { x: mx, y: my };
+  const dx = p2.x - p1.x, dy = p2.y - p1.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;
+  // approximate point on bezier at t=0.5
+  return { x: mx + nx * bend * 15, y: my + ny * bend * 15 };
+}
+
+/* Approximate boundary point of a node when ray comes from (tx, ty) toward node center */
+function boundaryPoint(node, tx, ty) {
+  const cx = node.x, cy = node.y;
+  const dx = tx - cx, dy = ty - cy;
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  const w = node.w / 2, h = node.h / 2;
+
+  if (node.type === 'circle') {
+    const r = Math.min(node.w, node.h) / 2;
+    const len = Math.hypot(dx, dy);
+    return { x: cx + dx / len * r, y: cy + dy / len * r };
+  }
+  if (node.type === 'ellipse') {
+    const t = 1 / Math.sqrt((dx*dx)/(w*w) + (dy*dy)/(h*h));
+    return { x: cx + dx * t, y: cy + dy * t };
+  }
+  if (node.type === 'diamond') {
+    // boundary: |x|/w + |y|/h = 1 from center
+    const t = 1 / (Math.abs(dx)/w + Math.abs(dy)/h);
+    return { x: cx + dx * t, y: cy + dy * t };
+  }
+  // rectangle / rounded / text — clip to box
+  const tx2 = w / Math.abs(dx || 0.0001);
+  const ty2 = h / Math.abs(dy || 0.0001);
+  const t = Math.min(tx2, ty2);
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
+/* ===========================================================
+   NODE INTERACTION (drag, select, connect)
+   =========================================================== */
+function attachNodeEvents(g, node) {
+  let dragging = false, moved = false, startX, startY, origX, origY;
+
+  g.addEventListener('mousedown', (e) => {
+    if (state.mode === 'connect') return; // handled on click
+    if (state.mode === 'place') return;
+    e.stopPropagation();
+    dragging = true;
+    moved = false;
+    startX = e.clientX; startY = e.clientY;
+    origX = node.x; origY = node.y;
+    select(node.id, 'node');
+  });
+
+  g.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (state.mode === 'connect') {
+      handleConnectClick(node);
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+    node.x = origX + dx;
+    node.y = origY + dy;
+    g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+    // re-render edges connected to this node
+    if (moved) refreshEdges();
+    renderCode();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (dragging) dragging = false;
+  });
+}
+
+function refreshEdges() {
+  const edgeLayer = canvas.querySelector('[data-layer="edges"]');
+  if (!edgeLayer) return;
+  while (edgeLayer.firstChild) edgeLayer.removeChild(edgeLayer.firstChild);
+  state.edges.forEach(edge => renderEdge(edge, edgeLayer));
+}
+
+function handleConnectClick(node) {
+  if (!state.connectFrom) {
+    state.connectFrom = node.id;
+    showHint('已选起点 · 再点终点节点');
+    render();
+  } else if (state.connectFrom === node.id) {
+    state.connectFrom = null;
+    showHint('取消起点 · 重新选择');
+    render();
+  } else {
+    addEdge(state.connectFrom, node.id);
+    state.connectFrom = null;
+    exitMode();
+  }
+}
+
+function addEdge(fromId, toId) {
+  const edge = {
+    id: 'e' + (state.idCounter++),
+    from: fromId,
+    to: toId,
+    label: '',
+    arrow: 'forward',  // 'none' | 'forward' | 'back' | 'both'
+    dashed: false,
+    color: '#1a1814',
+    bend: 0,
+  };
+  state.edges.push(edge);
+  render();
+  select(edge.id, 'edge');
+}
+
+/* ===========================================================
+   SELECTION & INSPECTOR
+   =========================================================== */
+function select(id, kind) {
+  state.selectedId = id;
+  state.selectedKind = kind;
+  render();
+}
+
+function deleteSelected() {
+  if (state.selectedKind === 'node') {
+    state.edges = state.edges.filter(e => e.from !== state.selectedId && e.to !== state.selectedId);
+    state.nodes = state.nodes.filter(n => n.id !== state.selectedId);
+  } else if (state.selectedKind === 'edge') {
+    state.edges = state.edges.filter(e => e.id !== state.selectedId);
+  }
+  state.selectedId = null;
+  state.selectedKind = null;
+  render();
+}
+
+function renderInspector() {
+  if (!state.selectedId) {
+    propsTag.textContent = '无选中';
+    propsBody.innerHTML = `
+      <p class="empty-state">
+        从左侧<em>点击形状图标</em>添加节点。<br/>
+        点击节点选中、拖动移动；<br/>
+        按 <em>连线</em> 按钮后依次点两个节点即可连接。<br/>
+        按 <em>Delete / Backspace</em> 删除选中。
+      </p>`;
+    return;
+  }
+
+  if (state.selectedKind === 'node') {
+    const n = state.nodes.find(x => x.id === state.selectedId);
+    if (!n) return;
+    propsTag.textContent = `节点 ${n.id} · ${n.type}`;
+    propsBody.innerHTML = `
+      <div class="field">
+        <div class="field-row">
+          <label>文字</label>
+          <textarea id="f_text" placeholder="支持多行 · LaTeX 命令直接写">${n.text || ''}</textarea>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row split-2">
+          <label>尺寸</label>
+          <input type="number" id="f_w" value="${Math.round(n.w)}" min="20" step="5" title="宽 (px)" />
+          <input type="number" id="f_h" value="${Math.round(n.h)}" min="20" step="5" title="高 (px)" />
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row split-2">
+          <label>位置</label>
+          <input type="number" id="f_x" value="${Math.round(n.x)}" step="5" title="x (px)" />
+          <input type="number" id="f_y" value="${Math.round(n.y)}" step="5" title="y (px)" />
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>字号</label>
+          <input type="range" id="f_fs" min="8" max="32" step="1" value="${n.fontSize}" />
+        </div>
+      </div>
+
+      ${n.type === 'text' ? '' : `
+      <div class="field">
+        <div class="field-row">
+          <label>填充</label>
+          <div class="color-picker">
+            <input type="color" id="f_fill" value="${n.fill === 'none' ? '#ffffff' : n.fill}" />
+            <input type="text" class="hex" id="f_fillHex" value="${n.fill}" />
+            <button class="clear-btn" id="f_fillNone" title="无填充">∅</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>描边</label>
+          <div class="color-picker">
+            <input type="color" id="f_stroke" value="${n.stroke === 'none' ? '#000000' : n.stroke}" />
+            <input type="text" class="hex" id="f_strokeHex" value="${n.stroke}" />
+            <button class="clear-btn" id="f_strokeNone" title="无描边">∅</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>线宽</label>
+          <input type="range" id="f_sw" min="0" max="5" step="0.25" value="${n.strokeWidth}" />
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>线型</label>
+          <select id="f_dashed">
+            <option value="false" ${!n.dashed?'selected':''}>实线</option>
+            <option value="true"  ${ n.dashed?'selected':''}>虚线</option>
+          </select>
+        </div>
+      </div>
+      `}
+
+      <div class="danger-zone">
+        <button class="btn" id="f_dup">复制节点</button>
+        <button class="btn danger" id="f_del">删除</button>
+      </div>
+    `;
+    bindNodeFields(n);
+  } else if (state.selectedKind === 'edge') {
+    const e = state.edges.find(x => x.id === state.selectedId);
+    if (!e) return;
+    const a = state.nodes.find(n => n.id === e.from);
+    const b = state.nodes.find(n => n.id === e.to);
+    propsTag.textContent = `连线 ${a?.id || '?'} → ${b?.id || '?'}`;
+    propsBody.innerHTML = `
+      <div class="field">
+        <div class="field-row">
+          <label>标签</label>
+          <input type="text" id="e_label" value="${e.label || ''}" placeholder="例如 f, x>0" />
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>箭头</label>
+          <select id="e_arrow">
+            <option value="none"     ${e.arrow==='none'?'selected':''}>无</option>
+            <option value="forward"  ${e.arrow==='forward'?'selected':''}>→ 正向</option>
+            <option value="back"     ${e.arrow==='back'?'selected':''}>← 反向</option>
+            <option value="both"     ${e.arrow==='both'?'selected':''}>↔ 双向</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>线型</label>
+          <select id="e_dashed">
+            <option value="false" ${!e.dashed?'selected':''}>实线</option>
+            <option value="true"  ${ e.dashed?'selected':''}>虚线</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>颜色</label>
+          <div class="color-picker">
+            <input type="color" id="e_color" value="${e.color}" />
+            <input type="text" class="hex" id="e_colorHex" value="${e.color}" />
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-row">
+          <label>弯曲</label>
+          <input type="range" id="e_bend" min="-3" max="3" step="0.5" value="${e.bend}" />
+        </div>
+      </div>
+
+      <div class="danger-zone">
+        <button class="btn danger" id="e_del" style="flex: 1;">删除连线</button>
+      </div>
+    `;
+    bindEdgeFields(e);
+  }
+}
+
+function bindNodeFields(n) {
+  const $ = (id) => document.getElementById(id);
+  $('f_text').addEventListener('input', (e) => { n.text = e.target.value; render(); });
+  $('f_w').addEventListener('input', (e) => { n.w = +e.target.value || n.w; render(); });
+  $('f_h').addEventListener('input', (e) => { n.h = +e.target.value || n.h; render(); });
+  $('f_x').addEventListener('input', (e) => { n.x = +e.target.value || n.x; render(); });
+  $('f_y').addEventListener('input', (e) => { n.y = +e.target.value || n.y; render(); });
+  $('f_fs').addEventListener('input', (e) => { n.fontSize = +e.target.value; render(); });
+
+  if (n.type !== 'text') {
+    const sync = (kind) => {
+      const colorEl = $(`f_${kind}`);
+      const hexEl = $(`f_${kind}Hex`);
+      colorEl.addEventListener('input', () => { n[kind] = colorEl.value; hexEl.value = colorEl.value; render(); });
+      hexEl.addEventListener('change', () => {
+        const v = hexEl.value.trim();
+        if (v === 'none' || /^#[0-9a-fA-F]{6}$/.test(v)) { n[kind] = v; if (v !== 'none') colorEl.value = v; render(); }
+      });
+    };
+    sync('fill');
+    sync('stroke');
+    $('f_fillNone').addEventListener('click', () => { n.fill = 'none'; render(); });
+    $('f_strokeNone').addEventListener('click', () => { n.stroke = 'none'; render(); });
+    $('f_sw').addEventListener('input', (e) => { n.strokeWidth = +e.target.value; render(); });
+    $('f_dashed').addEventListener('change', (e) => { n.dashed = e.target.value === 'true'; render(); });
+  }
+
+  $('f_del').addEventListener('click', deleteSelected);
+  $('f_dup').addEventListener('click', () => {
+    const copy = { ...n, id: uid(), x: n.x + 30, y: n.y + 30 };
+    state.nodes.push(copy);
+    select(copy.id, 'node');
+  });
+}
+
+function bindEdgeFields(e) {
+  const $ = (id) => document.getElementById(id);
+  $('e_label').addEventListener('input', (ev) => { e.label = ev.target.value; render(); });
+  $('e_arrow').addEventListener('change', (ev) => { e.arrow = ev.target.value; render(); });
+  $('e_dashed').addEventListener('change', (ev) => { e.dashed = ev.target.value === 'true'; render(); });
+  $('e_color').addEventListener('input', () => { e.color = $('e_color').value; $('e_colorHex').value = e.color; render(); });
+  $('e_colorHex').addEventListener('change', () => {
+    const v = $('e_colorHex').value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) { e.color = v; $('e_color').value = v; render(); }
+  });
+  $('e_bend').addEventListener('input', (ev) => { e.bend = +ev.target.value; render(); });
+  $('e_del').addEventListener('click', deleteSelected);
+}
+
+/* ===========================================================
+   TIKZ CODE GENERATION
+   =========================================================== */
+function px2cm(px) { return (px / state.scale).toFixed(2).replace(/\.?0+$/, '') || '0'; }
+
+function nodeShapeToTikz(n) {
+  switch (n.type) {
+    case 'rectangle': return 'rectangle';
+    case 'rounded':   return 'rectangle, rounded corners=4pt';
+    case 'circle':    return 'circle';
+    case 'ellipse':   return 'ellipse';
+    case 'diamond':   return 'diamond, aspect=1.4';
+    case 'text':      return null;
+  }
+}
+
+function colorMap(hexColors) {
+  // returns { hex -> name }
+  const map = {};
+  let i = 1;
+  hexColors.forEach(hex => {
+    if (hex && hex !== 'none' && !map[hex]) {
+      map[hex] = `c${i++}`;
+    }
+  });
+  return map;
+}
+
+function generateTikz() {
+  if (state.nodes.length === 0 && state.edges.length === 0) {
+    return state.codeMode === 'full'
+      ? '\\documentclass{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{shapes.geometric, arrows.meta, positioning}\n\\begin{document}\n\\begin{tikzpicture}\n  % 画布为空 — 添加形状即可生成代码\n\\end{tikzpicture}\n\\end{document}\n'
+      : '\\begin{tikzpicture}\n  % 画布为空 — 添加形状即可生成代码\n\\end{tikzpicture}\n';
+  }
+
+  // Compute origin: bottom-left of bounding box → (0,0)
+  const cs = getCanvasSize();
+  const canvasH = cs.h;
+
+  // Collect all colors
+  const allHex = new Set();
+  state.nodes.forEach(n => {
+    if (n.fill !== 'none' && n.fill) allHex.add(n.fill.toUpperCase());
+    if (n.stroke !== 'none' && n.stroke) allHex.add(n.stroke.toUpperCase());
+  });
+  state.edges.forEach(e => { if (e.color) allHex.add(e.color.toUpperCase()); });
+  const cmap = colorMap([...allHex]);
+
+  let lines = [];
+  let usesShapes = state.nodes.some(n => n.type === 'diamond');
+
+  if (state.codeMode === 'full') {
+    lines.push('\\documentclass{standalone}');
+    lines.push('\\usepackage{tikz}');
+    lines.push('\\usepackage{xcolor}');
+    lines.push('\\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc}');
+    // Color definitions
+    Object.keys(cmap).forEach(hex => {
+      lines.push(`\\definecolor{${cmap[hex]}}{HTML}{${hex.replace('#','')}}`);
+    });
+    lines.push('\\begin{document}');
+    lines.push('\\begin{tikzpicture}[>=Stealth, font=\\sffamily, line cap=round]');
+  } else {
+    // Color definitions inline as a comment block at top
+    if (Object.keys(cmap).length > 0) {
+      lines.push('% 颜色定义 (放入导言区):');
+      Object.keys(cmap).forEach(hex => {
+        lines.push(`% \\definecolor{${cmap[hex]}}{HTML}{${hex.replace('#','')}}`);
+      });
+      lines.push('% 需要的库: \\usetikzlibrary{shapes.geometric, arrows.meta}');
+    }
+    lines.push('\\begin{tikzpicture}[>=Stealth, font=\\sffamily, line cap=round]');
+  }
+
+  // Nodes
+  state.nodes.forEach(n => {
+    const tx = px2cm(n.x);
+    const ty = px2cm(canvasH - n.y);
+    const opts = [];
+
+    if (n.type === 'text') {
+      // text-only node
+      const fs = fontSizeCmd(n.fontSize);
+      lines.push(`  \\node${fs ? `[${fs}]` : ''} (${n.id}) at (${tx},${ty}) {${escTex(n.text)}};`);
+      return;
+    }
+
+    const shape = nodeShapeToTikz(n);
+    if (shape) opts.push('draw');
+    if (shape) opts.push(shape);
+
+    // size
+    if (n.type === 'circle') {
+      opts.push(`minimum size=${px2cm(Math.min(n.w, n.h))}cm`);
+    } else if (n.type === 'rectangle' || n.type === 'rounded') {
+      opts.push(`minimum width=${px2cm(n.w)}cm`);
+      opts.push(`minimum height=${px2cm(n.h)}cm`);
+      opts.push('inner sep=0pt');
+    } else {
+      opts.push(`minimum width=${px2cm(n.w)}cm`);
+      opts.push(`minimum height=${px2cm(n.h)}cm`);
+    }
+
+    if (n.fill && n.fill !== 'none') opts.push(`fill=${cmap[n.fill.toUpperCase()]}`);
+    if (n.stroke && n.stroke !== 'none' && n.stroke.toUpperCase() !== '#1A1814') {
+      opts.push(`draw=${cmap[n.stroke.toUpperCase()]}`);
+    }
+    if (n.strokeWidth && n.strokeWidth !== 1.5) {
+      opts.push(`line width=${(n.strokeWidth * 0.4).toFixed(2)}pt`);
+    }
+    if (n.dashed) opts.push('dashed');
+
+    const fs = fontSizeCmd(n.fontSize);
+    if (fs) opts.push(`font=${fs}\\sffamily`);
+
+    const optStr = opts.join(', ');
+    lines.push(`  \\node[${optStr}] (${n.id}) at (${tx},${ty}) {${escTex(n.text)}};`);
+  });
+
+  if (state.edges.length > 0) lines.push('');
+
+  // Edges
+  state.edges.forEach(e => {
+    const opts = [];
+    if (e.arrow === 'forward') opts.push('->');
+    else if (e.arrow === 'back') opts.push('<-');
+    else if (e.arrow === 'both') opts.push('<->');
+    if (e.dashed) opts.push('dashed');
+    if (e.color && e.color.toUpperCase() !== '#1A1814') opts.push(`color=${cmap[e.color.toUpperCase()]}`);
+
+    const optStr = opts.length ? `[${opts.join(', ')}]` : '';
+    let connector = '--';
+    let bendStr = '';
+    if (e.bend && Math.abs(e.bend) > 0.1) {
+      const angle = Math.round(Math.abs(e.bend) * 15);
+      bendStr = e.bend > 0 ? `to[bend left=${angle}]` : `to[bend right=${angle}]`;
+      connector = bendStr;
+    }
+    const labelPart = e.label ? ` node[midway, above, sloped, font=\\small\\itshape] {${escTex(e.label)}}` : '';
+    lines.push(`  \\draw${optStr} (${e.from}) ${connector} (${e.to})${labelPart};`);
+  });
+
+  lines.push('\\end{tikzpicture}');
+  if (state.codeMode === 'full') {
+    lines.push('\\end{document}');
+  }
+  return lines.join('\n');
+}
+
+function fontSizeCmd(px) {
+  if (px <= 9) return '\\tiny';
+  if (px <= 11) return '\\scriptsize';
+  if (px <= 12) return '\\footnotesize';
+  if (px <= 14) return '\\normalsize';
+  if (px <= 16) return '\\large';
+  if (px <= 19) return '\\Large';
+  if (px <= 22) return '\\LARGE';
+  if (px <= 26) return '\\huge';
+  return '\\Huge';
+}
+
+/* Highlight TikZ code (basic) */
+function highlight(code) {
+  return code
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(%[^\n]*)/g, '<span class="comment">$1</span>')
+    .replace(/(\\(?:begin|end)\{[^}]+\})/g, '<span class="keyword">$1</span>')
+    .replace(/(\\[a-zA-Z@]+)/g, '<span class="command">$1</span>')
+    .replace(/(\{[^{}\n]*\})/g, (m) => `<span class="string">${m}</span>`)
+    .replace(/\b(\d+\.?\d*)/g, '<span class="number">$1</span>');
+}
+
+function renderCode() {
+  const code = generateTikz();
+  codeContent.innerHTML = highlight(code);
+}
+
+/* Code mode toggle */
+document.querySelectorAll('.code-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.code-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.codeMode = btn.dataset.mode;
+    renderCode();
+  });
+});
+
+/* Copy button */
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const code = generateTikz();
+  try {
+    await navigator.clipboard.writeText(code);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '已复制 ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('copied'); }, 1400);
+  } catch {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = code; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+});
+
+/* Clear all */
+document.getElementById('clearAll').addEventListener('click', () => {
+  if (state.nodes.length === 0 && state.edges.length === 0) return;
+  if (confirm('确定清空画布上的所有内容？')) {
+    state.nodes = [];
+    state.edges = [];
+    state.selectedId = null;
+    state.selectedKind = null;
+    render();
+  }
+});
+
+/* Load example */
+document.getElementById('loadExample').addEventListener('click', () => {
+  state.nodes = [];
+  state.edges = [];
+  state.idCounter = 1;
+
+  const cs = getCanvasSize();
+  const cx = cs.w / 2, cy = cs.h / 2;
+
+  // A small flowchart example
+  const a = { id: uid(), type: 'rounded',  x: cx - 220, y: cy - 80, w: 130, h: 56, text: '开始',  fontSize: 14, fill: '#e6efde', stroke: '#1a1814', strokeWidth: 1.5, dashed: false };
+  const b = { id: uid(), type: 'rectangle',x: cx,        y: cy - 80, w: 140, h: 56, text: '读取数据', fontSize: 14, fill: '#fef3df', stroke: '#1a1814', strokeWidth: 1.5, dashed: false };
+  const c = { id: uid(), type: 'diamond',  x: cx,        y: cy + 30, w: 140, h: 90, text: '有效?',   fontSize: 14, fill: '#f6e6c8', stroke: '#1a1814', strokeWidth: 1.5, dashed: false };
+  const d = { id: uid(), type: 'rectangle',x: cx + 220,  y: cy + 30, w: 140, h: 56, text: '处理',    fontSize: 14, fill: '#dde7f0', stroke: '#1a1814', strokeWidth: 1.5, dashed: false };
+  const e = { id: uid(), type: 'rounded',  x: cx,        y: cy + 150,w: 130, h: 56, text: '结束',    fontSize: 14, fill: '#fde2dc', stroke: '#1a1814', strokeWidth: 1.5, dashed: false };
+  state.nodes.push(a, b, c, d, e);
+
+  state.edges.push(
+    { id: 'e' + state.idCounter++, from: a.id, to: b.id, label: '',    arrow: 'forward', dashed: false, color: '#1a1814', bend: 0 },
+    { id: 'e' + state.idCounter++, from: b.id, to: c.id, label: '',    arrow: 'forward', dashed: false, color: '#1a1814', bend: 0 },
+    { id: 'e' + state.idCounter++, from: c.id, to: d.id, label: '是',  arrow: 'forward', dashed: false, color: '#1a1814', bend: 0 },
+    { id: 'e' + state.idCounter++, from: c.id, to: e.id, label: '否',  arrow: 'forward', dashed: true,  color: '#c8451a', bend: -1 },
+    { id: 'e' + state.idCounter++, from: d.id, to: e.id, label: '',    arrow: 'forward', dashed: false, color: '#1a1814', bend: 1 },
+  );
+
+  render();
+  showHint('已载入流程图示例');
+});
+
+/* Initial render */
+render();
+
+</script>
+</body>
+</html>
