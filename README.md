@@ -28,7 +28,7 @@ Sketch your diagram in the browser, edit text and colors visually, then copy the
 
 ## 🚀 Quick Start
 
-1. Download `tikz-atelier.html` from this repo (or clone it).
+1. Download `index.html` from this repo (or clone it).
 2. Open the file in any modern browser. That's the entire installation.
 
 > No Node.js, no `npm install`, no server. Works offline.
@@ -148,7 +148,7 @@ Pull requests welcome.
 Issues and PRs are welcome. Since the entire app is a single HTML file, contributing is as simple as:
 
 1. Fork the repo
-2. Edit `tikz-atelier.html`
+2. Edit `index.html`
 3. Open it in a browser to verify
 4. Submit a PR
 
@@ -166,6 +166,6 @@ You can use, modify, and ship this in your own projects, commercial or otherwise
 
 ## 👤 Author
 
-Made by **Karcen Zheng** — [Get in touch](https://karcen.github.io/zhengjiacheng.github.io/)
+Made by **Karcen Zheng** — [Get in touch](https://karcen.github.io/)
 
 If TikZ Atelier saved you time on a paper, slide deck, or thesis, a ⭐ on the repo is the nicest way to say thanks.
